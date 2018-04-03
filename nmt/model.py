@@ -119,6 +119,8 @@ class BaseModel(object):
       self.infer_logits, _, self.final_context_state, self.sample_id = res
       self.sample_words = reverse_target_vocab_table.lookup(
           tf.to_int64(self.sample_id))
+      # loss for individual sentences
+      self.eval_loss_for_hits = self._compute_loss_for_hits(res[0])
 
     if self.mode != tf.contrib.learn.ModeKeys.INFER:
       ## Count the number of predicted words for compute ppl.
@@ -270,6 +272,10 @@ class BaseModel(object):
     return sess.run([self.eval_loss,
                      self.predict_count,
                      self.batch_size])
+
+  # reference-free metrics: perplexity (?), hit@1
+  def eval_no_ref(self, sess):
+      return sess.run([self.eval_loss_for_hits])
 
   def build_graph(self, hparams, scope=None):
     """Subclass must implement this method.
@@ -512,6 +518,23 @@ class BaseModel(object):
         crossent * target_weights) / tf.to_float(self.batch_size)
     return loss
 
+  # evaluate the performance of chit-chat:
+  # compute hits@1
+  def _compute_loss_for_hits(self, logits):
+    target_output = self.iterator.target_output
+    if self.time_major:
+      target_output = tf.transpose(target_output)
+    max_time = self.get_max_time(target_output)
+    crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+      labels=target_output, logits=logits)
+    target_weights = tf.sequence_mask(
+      self.iterator.target_sequence_length, max_time, dtype=logits.dtype)
+    if self.time_major:
+      target_weights = tf.transpose(target_weights)
+
+    loss = crossent * target_weights
+    return loss
+
   def _get_infer_summary(self, hparams):
     return tf.no_op()
 
@@ -537,6 +560,9 @@ class BaseModel(object):
     # batch_size, time] when using beam search.
     if self.time_major:
       sample_words = sample_words.transpose()
+      #print(sample_words.shape)
+      #print(sample_words)
+
     elif sample_words.ndim == 3:  # beam search output in [batch_size,
                                   # time, beam_width] shape.
       sample_words = sample_words.transpose([2, 0, 1])
