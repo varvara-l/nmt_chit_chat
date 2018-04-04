@@ -69,7 +69,7 @@ def run_internal_eval(
 
   dev_ppl = _internal_eval(loaded_eval_model, global_step, eval_sess,
                            eval_model.iterator, dev_eval_iterator_feed_dict,
-                           summary_writer, "dev")
+                           summary_writer, "dev", hparams, save_on_best=True)
   test_ppl = None
   if use_test_set and hparams.test_prefix:
     test_src_file = "%s.%s" % (hparams.test_prefix, hparams.src)
@@ -80,7 +80,7 @@ def run_internal_eval(
     }
     test_ppl = _internal_eval(loaded_eval_model, global_step, eval_sess,
                               eval_model.iterator, test_eval_iterator_feed_dict,
-                              summary_writer, "test")
+                              summary_writer, "test", hparams, save_on_best=False)
   return dev_ppl, test_ppl
 
 
@@ -492,11 +492,23 @@ def _get_best_results(hparams):
 
 
 def _internal_eval(model, global_step, sess, iterator, iterator_feed_dict,
-                   summary_writer, label):
+                   summary_writer, label, hparams, save_on_best=True):
   """Computing perplexity."""
   sess.run(iterator.initializer, feed_dict=iterator_feed_dict)
   ppl = model_helper.compute_perplexity(model, sess, label)
   utils.add_summary(summary_writer, global_step, "%s_ppl" % label, ppl)
+
+  # Save on best metrics
+  if global_step > 0:
+    best_metric_label = "best_ppl"
+    # metric: smaller is better
+    if save_on_best and ppl < getattr(hparams, best_metric_label):
+      setattr(hparams, best_metric_label, ppl)
+      model.saver.save(sess,
+                       os.path.join(getattr(hparams, best_metric_label + "_dir"), "translate.ckpt"),
+                       global_step=global_step)
+    utils.save_hparams(hparams.out_dir, hparams)
+
   return ppl
 
 
