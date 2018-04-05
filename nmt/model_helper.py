@@ -257,10 +257,10 @@ def _create_pretrained_emb_from_txt(
 
 
 def _create_or_load_embed(embed_name, vocab_file, embed_file,
-                          vocab_size, embed_size, dtype):
+                          vocab_size, embed_size, dtype, num_trainable_tokens=3):
   """Create a new or load an existing embedding matrix."""
   if vocab_file and embed_file:
-    embedding = _create_pretrained_emb_from_txt(vocab_file, embed_file)
+    embedding = _create_pretrained_emb_from_txt(vocab_file, embed_file, num_trainable_tokens=num_trainable_tokens)
   else:
     with tf.device(_get_embed_device(vocab_size)):
       embedding = tf.get_variable(
@@ -279,7 +279,8 @@ def create_emb_for_encoder_and_decoder(share_vocab,
                                        tgt_vocab_file=None,
                                        src_embed_file=None,
                                        tgt_embed_file=None,
-                                       scope=None):
+                                       scope=None,
+                                       num_trainable_tokens=3):
   """Create embedding matrix for both encoder and decoder.
 
   Args:
@@ -331,7 +332,7 @@ def create_emb_for_encoder_and_decoder(share_vocab,
 
       embedding_encoder = _create_or_load_embed(
           "embedding_share", vocab_file, embed_file,
-          src_vocab_size, src_embed_size, dtype)
+          src_vocab_size, src_embed_size, dtype, num_trainable_tokens=num_trainable_tokens)
       embedding_decoder = embedding_encoder
     else:
       with tf.variable_scope("encoder", partitioner=partitioner):
@@ -595,11 +596,14 @@ def compute_perplexity(model, sess, name):
   while True:
     try:
       loss, predict_count, batch_size = model.eval(sess)
+      #print(batch_size, predict_count, loss)
       total_loss += loss * batch_size
+      #total_loss_mod = total_loss / total_predict_count
+      #print('{}\t\t{}'.format(loss, total_loss_mod))
       total_predict_count += predict_count
     except tf.errors.OutOfRangeError:
       break
-
+  #print(total_loss, total_predict_count)
   perplexity = utils.safe_exp(total_loss / total_predict_count)
   utils.print_time("  eval %s: perplexity %.2f" % (name, perplexity),
                    start_time)

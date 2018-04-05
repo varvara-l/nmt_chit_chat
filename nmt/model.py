@@ -253,7 +253,8 @@ class BaseModel(object):
             tgt_vocab_file=hparams.tgt_vocab_file,
             src_embed_file=hparams.src_embed_file,
             tgt_embed_file=hparams.tgt_embed_file,
-            scope=scope,))
+            scope=scope,
+            num_trainable_tokens=hparams.num_trainable_tokens))
 
   def train(self, sess):
     assert self.mode == tf.contrib.learn.ModeKeys.TRAIN

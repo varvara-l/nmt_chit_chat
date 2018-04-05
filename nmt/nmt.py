@@ -155,6 +155,9 @@ def add_arguments(parser):
       Pretrained embedding prefix, expect files with src/tgt suffixes.
       The embedding files should be Glove formated txt files.\
       """)
+  parser.add_argument("--num_trainable_tokens", type=int, default=3, help="""\
+      First N tokens in the vocabulary for which embeddings will be trained (default 3).
+      """)
   parser.add_argument("--sos", type=str, default="<s>",
                       help="Start-of-sentence symbol.")
   parser.add_argument("--eos", type=str, default="</s>",
@@ -311,6 +314,7 @@ def create_hparams(flags):
       residual=flags.residual,
       time_major=flags.time_major,
       num_embeddings_partitions=flags.num_embeddings_partitions,
+      num_trainable_tokens=flags.num_trainable_tokens,
 
       # Attention mechanisms
       attention=flags.attention,
