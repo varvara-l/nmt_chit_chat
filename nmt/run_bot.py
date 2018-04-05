@@ -19,10 +19,10 @@ from .utils import nmt_utils
 
 
 class ConvAISampleBot:
-    def __init__(self):
+    def __init__(self, hparams):
         self.chat_id = None
         self.observation = None
-        self.engine = NMTModel()
+        self.engine = NMTModel(hparams)
 
     def observe(self, m):
         print("Observe:")
@@ -107,9 +107,27 @@ def load_hparams(hparams_file):
 
 
 class NMTModel:
-    def __init__(self):
-        self.sess = tf.Session(graph=infer_model.graph, config=utils.get_config_proto())
-        self.loaded_infer_model = model_helper.load_model(infer_model.model, ckpt, self.sess, "infer")
+    def __init__(self, hparams):
+        # define the model type
+        if not hparams.attention:
+            model_creator = nmt_model.Model
+        elif hparams.attention_architecture == "standard":
+            model_creator = attention_model.AttentionModel
+        elif hparams.attention_architecture in ["gnmt", "gnmt_v2"]:
+            model_creator = gnmt_model.GNMTModel
+        else:
+            raise ValueError("Unknown model architecture")
+
+        self.infer_model = model_helper.create_infer_model(model_creator, hparams)
+
+        # retrieve the saved model
+        ckpt = FLAGS.ckpt
+        out_dir = FLAGS.out_dir
+        if not ckpt:
+            ckpt = tf.train.latest_checkpoint(out_dir)
+        self.sess = tf.Session(graph=self.infer_model.graph, config=utils.get_config_proto())
+        with self.infer_model.graph.as_default():
+            self.loaded_infer_model = model_helper.load_model(self.infer_model.model, ckpt, self.sess, "infer")
         self.new_dialogue = True
         self.cur_persona = []
         self.history = []
@@ -138,9 +156,9 @@ class NMTModel:
         # print(infer_data)
 
         # initialize iterator
-        self.sess.run(infer_model.iterator.initializer,
-                      feed_dict={infer_model.src_placeholder: infer_data,
-                                 infer_model.batch_size_placeholder: 1})
+        self.sess.run(self.infer_model.iterator.initializer,
+                      feed_dict={self.infer_model.src_placeholder: infer_data,
+                                 self.infer_model.batch_size_placeholder: 1})
 
         # decode
         nmt_outputs, infer_summary = self.loaded_infer_model.decode(self.sess)
@@ -184,24 +202,6 @@ if __name__ == "__main__":
     #    print("can't load hparams file")
     #    sys.exit()
 
-    # define the model type
-    if not hparams.attention:
-        model_creator = nmt_model.Model
-    elif hparams.attention_architecture == "standard":
-        model_creator = attention_model.AttentionModel
-    elif hparams.attention_architecture in ["gnmt", "gnmt_v2"]:
-        model_creator = gnmt_model.GNMTModel
-    else:
-        raise ValueError("Unknown model architecture")
-
-    infer_model = model_helper.create_infer_model(model_creator, hparams)
-
-    # retrieve the saved model
-    ckpt = FLAGS.ckpt
-    out_dir = FLAGS.out_dir
-    if not ckpt:
-        ckpt = tf.train.latest_checkpoint(out_dir)
-
     # load personas from a file
     personas = []
     if FLAGS.persona:
@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
     BOT_URL = os.path.join('https://ipavlov.mipt.ru/nipsrouter/', BOT_ID)
 
-    bot = ConvAISampleBot()
+    bot = ConvAISampleBot(hparams)
 
     while True:
         try:
