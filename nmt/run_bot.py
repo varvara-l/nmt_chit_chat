@@ -63,7 +63,7 @@ class ConvAISampleBot:
             'chat_id': self.chat_id
         }
 
-        text = self.engine(self.observation)
+        text = self.engine(user_input=self.observation)
 
         data = {}
         if text == '':
