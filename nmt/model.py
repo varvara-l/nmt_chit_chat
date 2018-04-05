@@ -120,7 +120,7 @@ class BaseModel(object):
       self.sample_words = reverse_target_vocab_table.lookup(
           tf.to_int64(self.sample_id))
       # loss for individual sentences
-      self.eval_loss_for_hits = self._compute_loss_for_hits(res[0])
+      # self.eval_loss_for_hits = self._compute_loss_for_hits(res[0])
 
     if self.mode != tf.contrib.learn.ModeKeys.INFER:
       ## Count the number of predicted words for compute ppl.
