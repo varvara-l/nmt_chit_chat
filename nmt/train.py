@@ -508,12 +508,16 @@ def _internal_eval(model, global_step, sess, iterator, iterator_feed_dict,
     except AttributeError:
         best_ppl = sys.maxsize
     if save_on_best and ppl < best_ppl:
-      setattr(hparams, best_metric_label, ppl)
-      model.saver.save(sess,
-                       os.path.join(getattr(hparams, best_metric_label + "_dir"), "translate.ckpt"),
-                       global_step=global_step)
-    utils.save_hparams(hparams.out_dir, hparams)
-
+        setattr(hparams, best_metric_label, ppl)
+        try:
+            best_ppl_dir = getattr(hparams, best_metric_label + "_dir")
+        except AttributeError:
+            setattr(hparams, best_metric_label + "_dir", os.path.join(hparams.out_dir, 'best_ppl'))
+            best_ppl_dir = getattr(hparams, best_metric_label + "_dir")
+        model.saver.save(sess,
+                         os.path.join(best_ppl_dir, "translate.ckpt"),
+                         global_step=global_step)
+        utils.save_hparams(hparams.out_dir, hparams)
   return ppl
 
 
