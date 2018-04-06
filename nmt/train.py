@@ -19,6 +19,7 @@ import math
 import os
 import random
 import time
+import sys
 
 import tensorflow as tf
 
@@ -502,7 +503,11 @@ def _internal_eval(model, global_step, sess, iterator, iterator_feed_dict,
   if global_step > 0:
     best_metric_label = "best_ppl"
     # metric: smaller is better
-    if save_on_best and ppl < getattr(hparams, best_metric_label):
+    try:
+        best_ppl = getattr(hparams, best_metric_label)
+    except AttributeError:
+        best_ppl = sys.maxsize
+    if save_on_best and ppl < best_ppl:
       setattr(hparams, best_metric_label, ppl)
       model.saver.save(sess,
                        os.path.join(getattr(hparams, best_metric_label + "_dir"), "translate.ckpt"),

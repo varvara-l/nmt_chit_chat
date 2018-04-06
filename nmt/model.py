@@ -115,12 +115,13 @@ class BaseModel(object):
               self.iterator.target_sequence_length)
     elif self.mode == tf.contrib.learn.ModeKeys.EVAL:
       self.eval_loss = res[1]
+      # loss for individual sentences
+      self.eval_loss_for_hits = self._compute_loss_for_hits(res[0])
+
     elif self.mode == tf.contrib.learn.ModeKeys.INFER:
       self.infer_logits, _, self.final_context_state, self.sample_id = res
       self.sample_words = reverse_target_vocab_table.lookup(
           tf.to_int64(self.sample_id))
-      # loss for individual sentences
-      # self.eval_loss_for_hits = self._compute_loss_for_hits(res[0])
 
     if self.mode != tf.contrib.learn.ModeKeys.INFER:
       ## Count the number of predicted words for compute ppl.
@@ -276,6 +277,7 @@ class BaseModel(object):
 
   # reference-free metrics: perplexity (?), hit@1
   def eval_no_ref(self, sess):
+      assert self.mode == tf.contrib.learn.ModeKeys.EVAL
       return sess.run([self.eval_loss_for_hits])
 
   def build_graph(self, hparams, scope=None):
@@ -534,6 +536,7 @@ class BaseModel(object):
       target_weights = tf.transpose(target_weights)
 
     loss = crossent * target_weights
+    # loss for individual sentences
     return loss
 
   def _get_infer_summary(self, hparams):
